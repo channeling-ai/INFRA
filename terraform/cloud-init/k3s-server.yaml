@@ -1,0 +1,147 @@
+#cloud-config
+# K3s server (control plane + agent workload) 부트스트랩
+# - embedded etcd 모드 (--cluster-init): 향후 HA 확장 용이 + S3 스냅샷 지원
+# - traefik/servicelb 비활성: cloudflared가 ingress 역할 대체
+# - 6시간마다 etcd 스냅샷을 OCI Object Storage로 자동 백업
+
+# cloud-init의 동작 순서
+# 1. bootcmd
+# 2. write_files
+# 3. packages
+# 4. runcmd
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+  - jq
+  - unzip
+
+# runcmd 실행전에 디스크에 미리 파일 만들어둠
+write_files:
+  # 커널 파라미터 설정 파일
+  # K3s가 동작하려면 리눅스 커널이 패킷 포워딩을 허용해야됨(다른 인터페이스로 패킷 넘기기)
+  # /etc/sysctl.d/ 디렉토리에 .conf 파일은 부팅시 자동 적용됨
+  # 99- -> 우선순위(높은게 나중에 적용됨)
+  - path: /etc/sysctl.d/99-k3s.conf
+    # net.bridge.bridge-nf-call-iptables  = 1 -> 브릿지 트래픽도 iptables 방화벽 규칙 적용해라 
+    # net.ipv4.ip_forward = 1 -> 이 머신을 라우터처럼 동작시켜라(파드끼리 통신시 필요)
+    content: |
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+    # 앞에 0은 8진수라는 명시
+    permissions: "0644"
+
+  # /opt/bootstrap/ 미리 생성
+  - path: /opt/bootstrap/.placeholder
+    content: "bootstrap dir"
+    permissions: "0644"
+
+  # ArgoCD가 처음에 어떤 깃 레포를 sync할지 알려주는 매니페스트
+  # cloud-init이 ArgoCD 설치 직후 이 파일을 kubectl apply해서 등록 
+  # -> ArgoCD가 그 깃 레포 보고 거기 있는 다른 Application 매니페스트들도 자동 등록 
+  # -> 모든 워크로드(postgres, kafka, spring 등) 자동 배포
+  # Terraform은 직접 K3s 리소스를 만들지 않음. 껍데기만 만들어놓고 ArgoCD가 깃에서 가져와서 채우는 느낌.
+  - path: /opt/bootstrap/argocd-root-app.yaml
+    content: |
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: root
+        namespace: argocd
+        finalizers:
+          - resources-finalizer.argocd.argoproj.io
+      spec:
+        project: default
+        source:
+          repoURL: ${github_infra_repo}
+          targetRevision: ${github_infra_branch}
+          path: ${github_infra_path}
+        destination:
+          server: https://kubernetes.default.svc
+          namespace: argocd
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+          syncOptions:
+            - CreateNamespace=true
+    permissions: "0644"
+
+# sysctl 적용 → 내 public IP 조회 → K3s server 설치 → 
+# kubectl 환경 → API 대기 → Helm 설치 → 
+# ArgoCD 설치 → ArgoCD 대기 → root App 등록 → 완료 마커
+runcmd:
+  # 0. sysctl 적용 - 위에서 작성한 99-k3.conf를 커널에 반영
+  - sysctl --system
+
+  # 1. 자기 자신 public IP를 OCI IMDS에서 조회 (kubectl 원격 접속용 TLS SAN에 사용)
+  # OCI의 메타데이터 서비스에 API 요청해서 물어보고 환경변수로 저장
+  - |
+    SERVER_PUB_IP=$(curl -sf -H "Authorization: Bearer Oracle" \
+      http://169.254.169.254/opc/v2/vnics/ | jq -r '.[0].publicIp')
+    echo "SERVER_PUB_IP=$SERVER_PUB_IP" > /opt/bootstrap/.env
+
+  # 2. K3s server 설치 (embedded etcd + S3 스냅샷)
+  # server -> 서버 모드로 설치(control plane)
+  # token -> agent가 join할 때 사용
+  # tls-san(Subject Alternative Name) -> 외부에서 공인 IP로 kubectl 점속할때 cert 검증 통과용으로 필요
+  # traefik -> K3s 기본 ingress 컨트롤러, 우리는 cloudflared 있으니까 비활성화
+  # servicelb -> K3s 기본 로드 밸런서 비활성화
+  # kubeconfig-mode=644 -> kubeconfig root외에도 읽기 가능하게 함(sudo 없이 kubectl 쓰게 하려고)
+  # etcd-snapshot-schedule -> 매 6시간마다 스냅샷 생성
+  # etcd-snapshot-retention -> 10개까지만 보관. 11개째는 가장 오래된거 1개 삭제.
+  # etcd-s3 -> 스냅샷을 S3에도 저장
+  - |
+    source /opt/bootstrap/.env
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.30.5+k3s1" \
+      INSTALL_K3S_EXEC="server \
+        --cluster-init \
+        --token=${k3s_token} \
+        --tls-san=$SERVER_PUB_IP \
+        --node-name=node-1 \
+        --node-label=role=data-tier \
+        --disable=traefik \
+        --disable=servicelb \
+        --write-kubeconfig-mode=644 \
+        --etcd-snapshot-schedule-cron='0 */6 * * *' \
+        --etcd-snapshot-retention=10 \
+        --etcd-s3 \
+        --etcd-s3-endpoint=${oci_s3_endpoint_host} \
+        --etcd-s3-bucket=${oci_s3_bucket} \
+        --etcd-s3-access-key=${oci_s3_access_key} \
+        --etcd-s3-secret-key=${oci_s3_secret_key} \
+        --etcd-s3-region=${oci_region}" \
+      sh -
+
+  # 2. kubectl 별칭 + KUBECONFIG 환경 설정
+  # 우분투 유저가 SSH로 들어왔을때 kubectl 바로 동작 가능하게 환경 셋업
+  # .bashrc -> 사용자가 bash 셸 열때마다 자동 실행되는 스크립트. 거기다가 kubeconfig 환경 변수 등록 
+  - echo "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml" >> /home/ubuntu/.bashrc
+  - echo "alias k=kubectl" >> /home/ubuntu/.bashrc
+
+  # 3. K3s API 서버 readiness 대기(kubectl 명령 받을 수 있을때까지)
+  - until KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get nodes >/dev/null 2>&1; do sleep 5; done
+
+  # 4. Helm 설치 (운영 시 차트 디버깅용)
+  - curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+  # 5. ArgoCD 설치
+  # 주요 구성 목록
+  # argocd-server (UI/API)
+  # argocd-repo-server (git 클론 담당)
+  # argocd-application-controller (sync 실행)
+  # argocd-dex-server (auth)
+  # argocd-redis (캐시)
+  - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create namespace argocd
+  - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.12.4/manifests/install.yaml
+
+  # 6. ArgoCD 서버 준비 대기
+  - until KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=available --timeout=600s deployment/argocd-server -n argocd; do sleep 10; done
+
+  # 7. Root Application 적용 (app-of-apps 부트스트랩)
+  - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -f /opt/bootstrap/argocd-root-app.yaml
+
+  # 8. 완료 마커
+  - touch /opt/bootstrap/.complete

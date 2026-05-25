@@ -1,0 +1,5 @@
+# TODO: ArgoCD Application 매니페스트들이 여기 위치
+# - chaneling-app.yaml  (spring, fastapi, sse, consumer)
+# - data.yaml            (postgres, redis, kafka)
+# - monitoring.yaml      (loki, grafana, promtail)
+# - platform.yaml        (cloudflared)

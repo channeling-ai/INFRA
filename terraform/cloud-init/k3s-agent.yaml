@@ -1,0 +1,86 @@
+#cloud-config
+# K3s agent (worker only) 부트스트랩
+# - server private IP를 통해 join
+# - role=app-tier 라벨로 nodeSelector에서 활용
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - curl
+
+write_files:
+  - path: /etc/sysctl.d/99-k3s.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+    permissions: "0644"
+
+runcmd:
+  # 0. sysctl 적용
+  - sysctl --system
+
+  # 1. server K3s API 준비 대기 (최대 10분)
+  - |
+    for i in $(seq 1 120); do
+      if curl -sk --connect-timeout 3 https://${server_private_ip}:6443/ping >/dev/null 2>&1; then
+        echo "server ready"
+        break
+      fi
+      echo "waiting for server... ($i/120)"
+      sleep 5
+    done
+
+  # 2. K3s agent 설치 (server에 join)
+  # agent (node-2)                              server (node-1)
+  #    │                                            │
+  #    │  1. server API 응답 오나? 체크 (curl ping)    │
+  #    ├──────── HTTPS 6443 /ping ──────────────────▶│
+  #    │◀──── 200 OK ───────────────────────────────┤
+  #    │                                            │
+  #    │  2. K3s 설치 스크립트 실행                     │
+  #    │     K3S_URL + K3S_TOKEN 환경변수로 agent 모드  │
+  #    │                                            │
+  #    │  3. CA 인증서 받기 (TLS 핸드셰이크 준비)        │
+  #    ├──────── HTTPS /cacerts ────────────────────▶│
+  #    │◀──── CA cert 다발 ─────────────────────────┤
+  #    │                                            │
+  #    │  4. node password 발급 (토큰 검증)             │
+  #    ├──────── POST /v1-k3s/serving-kubelet ─────▶│
+  #    │         (request body에 K3S_TOKEN 첨부)      │
+  #    │                                            │
+  #    │                            토큰 검증 ──┐     │
+  #    │                            (해시 일치?) │     │
+  #    │                                       ▼     │
+  #    │                            etcd에 node 등록 │
+  #    │                                            │
+  #    │◀── kubelet 인증서 + private key 발급 ───────┤
+  #    │                                            │
+  #    │  5. kubelet 시작 (받은 cert로 인증)          │
+  #    ├──────── kubelet → apiserver 등록 ──────────▶│
+  #    │         "node-2 ready, role=app-tier"      │
+  #    │                                            │
+  #    │  6. flannel CNI 시작                        │
+  #    │     VXLAN 터널 양 노드에 셋업                  │
+  #    │◀═══════ Pod 네트워크 통신 가능 ══════════════▶│
+  #    │                                            │
+  #    │  7. agent ready → Pod 받기 시작              │
+  #    │                                            │
+  
+  # 2. K3S_URL -> 이거 있으면 agent, 없으면 server
+  # K3S_TOKEN -> server-agent 인증용 토큰. server의 토큰 == agent의 토큰이어야 join 가능
+  # 4. CA(Certificate Authority) -> agent가 server와 HTTPS 통신하려면 server의 인증서를 검증해야됨. 그 검증의 기준이 CA. 토큰은 처음에 join할 때만 쓰고 통신은 다 cert 기반.
+  # 받은 CA cert로 agent -> server 통신 검증함.
+  - |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.30.5+k3s1" \
+      K3S_URL=https://${server_private_ip}:6443 \
+      K3S_TOKEN=${k3s_token} \
+      INSTALL_K3S_EXEC="agent \
+        --node-name=node-2 \
+        --node-label=role=app-tier" \
+      sh -
+
+  # 3. 완료 마커
+  - mkdir -p /opt/bootstrap
+  - touch /opt/bootstrap/.complete
