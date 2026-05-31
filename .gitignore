@@ -1,0 +1,37 @@
+# OS / 에디터
+.DS_Store
+**/.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+!**/*.tfvars.example
+**/crash.log
+**/crash.*.log
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# Helm
+**/charts/
+**/*.tgz
+**/Chart.lock
+
+# kubectl / kubeconfig
+kubeconfig*
+.kube/
+
+# Secrets (만에 하나 평문 파일 만들었을 때)
+**/secrets.yaml
+**/*-secrets.yaml
+!**/*-secrets.example.yaml

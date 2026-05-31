@@ -1,0 +1,35 @@
+# 컨슈머는 Kafka에서 메시지를 끌어오는거지(Kafka Servicee가 라우팅) 누가 호출하는게 아님 -> Service 불필요
+{{- if .Values.consumer.overview.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-overview
+  labels:
+    {{- include "chaneling.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer-overview
+spec:
+  replicas: {{ .Values.consumer.overview.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "chaneling.selectorLabels" (dict "Release" .Release "component" "consumer-overview") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chaneling.labels" . | nindent 8 }}
+        app.kubernetes.io/component: consumer-overview
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      affinity:
+        {{- include "chaneling.antiAffinity" (dict "component" "consumer-overview") | nindent 8 }}
+      containers:
+        - name: consumer
+          image: "{{ .Values.consumer.image.repository }}:{{ .Values.consumer.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: {{ toJson .Values.consumer.overview.command }}
+          env:
+            {{- include "chaneling.commonEnv" . | nindent 12 }}
+            {{- include "chaneling.llmEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
+{{- end }}

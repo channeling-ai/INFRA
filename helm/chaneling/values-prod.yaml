@@ -1,0 +1,32 @@
+################################################################################
+# chaneling · prod overrides
+# Task #6의 GHA가 release tag push 시 자동으로 image tag만 갱신
+################################################################################
+
+config:
+  springProfilesActive: "db,redis,kafka,prod"
+  frontUrl: "https://chaneling.io"
+  env: "prod"
+
+spring:
+  image:
+    tag: v1.0.0   # GHA가 자동 업데이트
+  # prod는 limit을 약간 더 후하게
+  resources:
+    requests: { cpu: "300m", memory: "768Mi" }
+    limits:   { cpu: "600m", memory: "1.2Gi" }
+
+fastapi:
+  image:
+    tag: v1.0.0
+  resources:
+    requests: { cpu: "250m", memory: "640Mi" }
+    limits:   { cpu: "500m", memory: "1Gi" }
+
+sse:
+  image:
+    tag: v1.0.0
+
+consumer:
+  image:
+    tag: v1.0.0

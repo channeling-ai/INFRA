@@ -1,0 +1,53 @@
+{{- if .Values.spring.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring
+  # Deployment에 박을 라벨
+  labels:
+    {{- include "chaneling.labels" . | nindent 4 }}
+    app.kubernetes.io/component: spring
+spec:
+  replicas: {{ .Values.spring.replicaCount }}
+  selector:
+    matchLabels:
+    # 어떤 라벨 붙은 파드가 내 자식인지 
+      {{- include "chaneling.selectorLabels" (dict "Release" .Release "component" "spring") | nindent 6 }}
+  template:
+    metadata:
+      # 파드에 박을 라벨
+      labels:
+        {{- include "chaneling.labels" . | nindent 8 }}
+        app.kubernetes.io/component: spring
+    spec:
+      # 어느 노드에 떨굴지 결정 (노드에 붙은 라벨 보고)
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      affinity:
+        {{- include "chaneling.antiAffinity" (dict "component" "spring") | nindent 8 }}
+      containers:
+        - name: spring
+          image: "{{ .Values.spring.image.repository }}:{{ .Values.spring.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.spring.service.port }}
+              protocol: TCP
+          env:
+            {{- include "chaneling.commonEnv" . | nindent 12 }}
+            {{- include "chaneling.springExtraEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.spring.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.spring.probes.liveness.path }}
+              port: {{ .Values.spring.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.spring.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.spring.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.spring.probes.readiness.path }}
+              port: {{ .Values.spring.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.spring.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.spring.probes.readiness.periodSeconds }}
+{{- end }}

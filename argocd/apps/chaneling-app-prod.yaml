@@ -1,0 +1,42 @@
+################################################################################
+# chaneling-app · ArgoCD Application (prod)
+# helm/chaneling 차트를 main branch + values-prod.yaml로 'app' namespace에 배포
+#
+# 가정: dev/prod는 별도 K3s 클러스터에서 운영. 같은 namespace(app) 재사용해도 충돌 없음
+################################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaneling-app-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_USER/INFRA.git
+    targetRevision: main                 # prod = main branch
+    path: helm/chaneling
+    helm:
+      releaseName: chaneling
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml               # prod override
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

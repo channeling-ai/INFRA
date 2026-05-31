@@ -1,0 +1,27 @@
+################################################################################
+# chaneling · dev overrides
+# `helm install --values values.yaml --values values-dev.yaml` 식으로 머지
+################################################################################
+
+config:
+  springProfilesActive: "db,redis,kafka,dev"
+  frontUrl: "https://dev.chaneling.io"
+  env: "dev"
+
+# dev는 image tag를 dev branch의 commit SHA 기반으로
+# CI가 build 후 values-dev.yaml의 tag 자리만 sed로 교체 (Task #6)
+spring:
+  image:
+    tag: dev-latest
+
+fastapi:
+  image:
+    tag: dev-latest
+
+sse:
+  image:
+    tag: dev-latest
+
+consumer:
+  image:
+    tag: dev-latest

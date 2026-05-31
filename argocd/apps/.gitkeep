@@ -1,5 +1,10 @@
-# TODO: ArgoCD Application 매니페스트들이 여기 위치
-# - chaneling-app.yaml  (spring, fastapi, sse, consumer)
-# - data.yaml            (postgres, redis, kafka)
-# - monitoring.yaml      (loki, grafana, promtail)
-# - platform.yaml        (cloudflared)
+# ArgoCD Application 매니페스트 모음
+# ArgoCD root Application이 이 폴더를 watch → 여기 추가하면 자동 등록 (app-of-apps)
+#
+# 환경별로 파일 분리. dev = dev 클러스터에만 apply, prod = prod 클러스터에만
+#
+# - chaneling-app-dev.yaml   (작성됨)
+# - chaneling-app-prod.yaml  (작성됨)
+# - data.yaml                (postgres, redis, kafka — TODO)
+# - monitoring.yaml          (loki, grafana, promtail — TODO)
+# - platform.yaml            (cloudflared — TODO)

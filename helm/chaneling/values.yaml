@@ -1,0 +1,168 @@
+################################################################################
+# chaneling app chart · base values
+# 환경별 override는 values-dev.yaml / values-prod.yaml 사용
+################################################################################
+
+global:
+  # Always: 매번 pull / IfNotPresent: 이미지 없을때만 pull / Never: 절대 pull x
+  imagePullPolicy: IfNotPresent
+  # 모든 워크로드에 공통으로 박힐 nodeSelector. role=app-tier는 K3s agent(node-2)
+  nodeSelector:
+    role: app-tier
+  # 노드 다운 시 다른 노드로 옮기되, 같은 워크로드끼리는 다른 노드에 우선 배치
+  # 이 파드는 어떤 파드랑 같이 있지마
+  # requiredDuringScheduling: 강제 / preferredDuringScheduling: 가능하면 지켜라
+  # IgnoredDuringExecution: 이미 떠있는 파드는 건드리지마라 
+  # spring-r1과 spring-r2는 다른 노드에 떨어지면 좋겠지만, 노드가 1개뿐이면 같은 노드에라도 띄워라
+  podAntiAffinityType: preferredDuringSchedulingIgnoredDuringExecution
+
+
+# 외부 의존 서비스 주소. data 차트에서 띄운 Service 이름과 매칭됨
+config:
+  # K8s 내부 DNS 패턴
+  # K8s가 클러스터 안에 자동 DNS 서버(CoreDNS)를 띄워두고, Service에 대한 호스트명을 자동 등록함
+  # 형식: <service-name>.<namespace>.svc.cluster.local
+  # postgres -> Service의 metadata.name
+  # data -> Service가 속한 네임스페이스
+  # cluster.local -> 클러스터 도메인(default)  
+  pgHost: postgres.data.svc.cluster.local
+  pgPort: "5432"
+  pgDatabase: chaneling
+  pgUser: chaneling
+  redisHost: redis.data.svc.cluster.local
+  redisPort: "6379"
+  kafkaBootstrap: kafka.data.svc.cluster.local:9092
+  springProfilesActive: "db,redis,kafka,prod"
+  frontUrl: "https://chaneling.com"
+  fastapiUrl: "http://fastapi.app.svc.cluster.local:8000"
+  awsRegion: "ap-northeast-2"
+  tz: "Asia/Seoul"
+  env: "prod"
+
+# K8s Secret 이름. 미리 생성 필요 (SealedSecret / kubectl create secret)
+# 포함 키: PG_PASSWORD, JWT_SECRET, OPENAI_API_KEY, SERPAPI_KEY, YOUTUBE_API_KEY,
+#         GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI,
+#         AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+#         AWS_S3_PRIVATE_BUCKET, AWS_S3_PUBLIC_BUCKET,
+#         PROXY_USERNAME, PROXY_PASSWORD,
+#         DISCORD_WEBHOOK_URL, REDIS_PASSWORD (선택)
+secrets:
+  # 시크릿값 관리 패턴: 차트가 직접 시크릿 안 말들고 외부에서 만든 시크릿 참조만 하겠다는 뜻
+  existingSecret: chaneling-secrets
+
+################################################################################
+# Spring (BE)
+################################################################################
+spring:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: hadoroke/channeling-be   # TODO: 이미지 리네임 후 chaneling-be로 변경
+    tag: latest
+  service:
+    # 파드는 죽으면 IP 바뀜, replica가 여러개면 IP도 여러개 / 스케줄러가 어느 노드에 떨굴지 결정하려는데 어떤 파드가 어디에 있는지 모름
+    # Service가 replica들에 대한 LB 역할을 함(Service는 영구 IP)
+    # 파드에 붙은 라벨을 보고 LB 대상으로 매칭(Service != 파드의 부모, 같은 레벨)
+    # ClusterIP: 클러스터 내부 전용 IP 부여(외부 접근 불가)
+    # NodePort: K8s가 모든 노드의 30000~32767 범위중에 1개 포트 엶, 어느 노드 IP로 접속하든 Service 통해 파드로 전달
+    # LoadBalancer: 클라우드 LB 자동 생성, 공인 IP/도메인 받고 내부적으로 NodePort거쳐 파드로 라우팅
+    # ExternalName: 외부 DB를 클러스터 내부 이름으로 호출하고 싶을 때 씀
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests: { cpu: "250m", memory: "768Mi" }
+    limits:   { cpu: "500m", memory: "1Gi" }
+  probes:
+    # 실패 -> K8s가 컨테이너 강제 재시작
+    liveness:
+      path: /actuator/health/liveness
+      port: 8080
+      initialDelaySeconds: 60
+      periodSeconds: 30
+    # 실패 -> Service에서 이 파드 제외(트래픽 안 보냄) 
+    readiness:
+      path: /actuator/health/readiness
+      port: 8080
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+################################################################################
+# FastAPI (LLM)
+################################################################################
+fastapi:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: hadoroke/channeling-llm   # TODO: chaneling-llm
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests: { cpu: "200m", memory: "512Mi" }
+    limits:   { cpu: "400m", memory: "768Mi" }
+  probes:
+    liveness:
+      path: /health
+      port: 8000
+      initialDelaySeconds: 60
+      periodSeconds: 30
+    readiness:
+      path: /health
+      port: 8000
+      initialDelaySeconds: 20
+      periodSeconds: 10
+
+################################################################################
+# SSE (Server-Sent Events)
+################################################################################
+sse:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: hadoroke/channeling-sse   # TODO: chaneling-sse
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8081
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "200m", memory: "384Mi" }
+  probes:
+    liveness:
+      path: /actuator/health/liveness
+      port: 8081
+      initialDelaySeconds: 60
+      periodSeconds: 30
+    readiness:
+      path: /actuator/health/readiness
+      port: 8081
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+################################################################################
+# Kafka Consumers (overview, analysis, idea)
+# fastapi 이미지를 재사용. 각자 다른 entrypoint(python kafka_*_consumer.py) 실행
+################################################################################
+consumer:
+  image:
+    repository: hadoroke/channeling-llm   # TODO: chaneling-llm
+    tag: latest
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "200m", memory: "384Mi" }
+
+  overview:
+    enabled: true
+    replicaCount: 2
+    command: ["python", "kafka_overview_consumer.py"]
+
+  analysis:
+    enabled: true
+    replicaCount: 2
+    command: ["python", "kafka_analysis_consumer.py"]
+
+  idea:
+    enabled: true
+    replicaCount: 2
+    command: ["python", "kafka_idea_consumer.py"]

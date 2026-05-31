@@ -1,0 +1,34 @@
+{{- if .Values.consumer.idea.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-idea
+  labels:
+    {{- include "chaneling.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer-idea
+spec:
+  replicas: {{ .Values.consumer.idea.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "chaneling.selectorLabels" (dict "Release" .Release "component" "consumer-idea") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chaneling.labels" . | nindent 8 }}
+        app.kubernetes.io/component: consumer-idea
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      affinity:
+        {{- include "chaneling.antiAffinity" (dict "component" "consumer-idea") | nindent 8 }}
+      containers:
+        - name: consumer
+          image: "{{ .Values.consumer.image.repository }}:{{ .Values.consumer.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          command: {{ toJson .Values.consumer.idea.command }}
+          env:
+            {{- include "chaneling.commonEnv" . | nindent 12 }}
+            {{- include "chaneling.llmEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
+{{- end }}

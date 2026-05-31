@@ -1,0 +1,49 @@
+################################################################################
+# chaneling-app · ArgoCD Application (dev)
+# helm/chaneling 차트를 dev branch + values-dev.yaml로 'app' namespace에 배포
+#
+# 가정: dev/prod는 별도 K3s 클러스터에서 운영. 같은 namespace(app) 재사용해도 충돌 없음
+################################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaneling-app-dev
+  # Application 객체 저장할 네임스페이스
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"   # data/monitoring 다음에 배포되도록 우선순위
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_USER/INFRA.git
+    targetRevision: dev
+    path: helm/chaneling
+    helm:
+      releaseName: chaneling
+      valueFiles:
+        - values.yaml
+        - values-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    # 어느 네임스페이스에 떨굴지
+    namespace: app
+  syncPolicy:
+    # 자동 sync
+    automated:
+      prune: true
+      # 누가 kubectl로 손대도 차트 상태로 되돌림
+      selfHeal: true
+    syncOptions:
+      # 목적지 네임스페이스 없으면 자동 생성
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        # 지수 백오프. 10,,20,,40,,80,,
+        factor: 2
+        # 최대 재시도 간격 5분 제한
+        maxDuration: 5m

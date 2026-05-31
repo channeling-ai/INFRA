@@ -1,0 +1,8 @@
+apiVersion: v2
+name: chaneling
+description: Chaneling 애플리케이션 차트 (spring, fastapi, sse, kafka consumer × 3)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: chaneling team

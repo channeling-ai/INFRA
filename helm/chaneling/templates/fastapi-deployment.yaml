@@ -1,0 +1,49 @@
+{{- if .Values.fastapi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+  labels:
+    {{- include "chaneling.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fastapi
+spec:
+  replicas: {{ .Values.fastapi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "chaneling.selectorLabels" (dict "Release" .Release "component" "fastapi") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chaneling.labels" . | nindent 8 }}
+        app.kubernetes.io/component: fastapi
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      affinity:
+        {{- include "chaneling.antiAffinity" (dict "component" "fastapi") | nindent 8 }}
+      containers:
+        - name: fastapi
+          image: "{{ .Values.fastapi.image.repository }}:{{ .Values.fastapi.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.fastapi.service.port }}
+              protocol: TCP
+          env:
+            {{- include "chaneling.commonEnv" . | nindent 12 }}
+            {{- include "chaneling.llmEnv" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.fastapi.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.fastapi.probes.liveness.path }}
+              port: {{ .Values.fastapi.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.fastapi.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.fastapi.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.fastapi.probes.readiness.path }}
+              port: {{ .Values.fastapi.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.fastapi.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.fastapi.probes.readiness.periodSeconds }}
+{{- end }}

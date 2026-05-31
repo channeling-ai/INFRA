@@ -1,0 +1,48 @@
+{{- if .Values.sse.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sse
+  labels:
+    {{- include "chaneling.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sse
+spec:
+  replicas: {{ .Values.sse.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "chaneling.selectorLabels" (dict "Release" .Release "component" "sse") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "chaneling.labels" . | nindent 8 }}
+        app.kubernetes.io/component: sse
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      containers:
+        - name: sse
+          image: "{{ .Values.sse.image.repository }}:{{ .Values.sse.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.sse.service.port }}
+              protocol: TCP
+          env:
+            {{- include "chaneling.commonEnv" . | nindent 12 }}
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .Values.config.springProfilesActive | quote }}
+          resources:
+            {{- toYaml .Values.sse.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.sse.probes.liveness.path }}
+              port: {{ .Values.sse.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.sse.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.sse.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.sse.probes.readiness.path }}
+              port: {{ .Values.sse.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.sse.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.sse.probes.readiness.periodSeconds }}
+{{- end }}
