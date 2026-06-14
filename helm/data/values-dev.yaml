@@ -1,0 +1,17 @@
+################################################################################
+# data · dev overrides
+################################################################################
+
+# dev는 디스크 작게
+postgres:
+  persistence:
+    size: 5Gi
+
+kafka:
+  persistence:
+    size: 5Gi
+  heapOpts: "-Xms384m -Xmx384m"
+
+redis:
+  persistence:
+    size: 500Mi

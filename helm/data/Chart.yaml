@@ -1,0 +1,8 @@
+apiVersion: v2
+name: data
+description: Chaneling 데이터 계층 (postgres, redis, kafka KRaft)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: chaneling team

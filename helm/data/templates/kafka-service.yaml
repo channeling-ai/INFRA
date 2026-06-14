@@ -1,0 +1,40 @@
+{{- if .Values.kafka.enabled }}
+---
+# 일반 Service: 클라이언트 접속용 (kafka.data.svc.cluster.local:9092)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  labels:
+    {{- include "data.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+spec:
+  type: ClusterIP
+  ports:
+    - name: client
+      port: {{ .Values.kafka.service.port }}
+      targetPort: client
+  selector:
+    {{- include "data.selectorLabels" (dict "Release" .Release "component" "kafka") | nindent 4 }}
+---
+# Headless Service: KRaft controller 통신 (kafka-0.kafka-headless...:9093)
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  labels:
+    {{- include "data.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: client
+      port: {{ .Values.kafka.service.port }}
+      targetPort: client
+    - name: controller
+      port: {{ .Values.kafka.service.controllerPort }}
+      targetPort: controller
+  selector:
+    {{- include "data.selectorLabels" (dict "Release" .Release "component" "kafka") | nindent 4 }}
+{{- end }}
