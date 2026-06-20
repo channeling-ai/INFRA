@@ -1,0 +1,49 @@
+{{- if .Values.promtail.enabled }}
+# Promtail config
+# - K8s 컨테이너 로그 (/var/log/pods)를 자동 발견하여 수집
+# - 메타데이터(namespace, pod, container)를 라벨로 부착
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+
+    positions:
+      filename: /run/promtail/positions.yaml
+
+    clients:
+      - url: {{ .Values.promtail.lokiUrl }}
+
+    scrape_configs:
+      # K8s 컨테이너 로그 자동 발견
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          # __host__ = 노드 호스트명 (DaemonSet에서 자기 노드 Pod만 수집하기 위함)
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: __host__
+          # 메타데이터를 라벨로
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
+            target_label: component
+          # 로그 파일 경로 (CRI-O / containerd 표준 위치)
+          - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+            target_label: __path__
+            separator: /
+            replacement: /var/log/pods/*$1/*.log
+{{- end }}

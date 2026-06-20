@@ -1,0 +1,16 @@
+{{- if .Values.grafana.enabled }}
+# Grafana는 Deployment라 volumeClaimTemplates 못 씀 (StatefulSet 전용)
+# → 일반 PVC 1개 만들어서 Deployment에서 마운트
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.grafana.persistence.size }}
+{{- end }}

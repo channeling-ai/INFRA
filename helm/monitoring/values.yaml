@@ -1,0 +1,84 @@
+################################################################################
+# monitoring chart · base values
+#
+# 구성:
+#   - Loki: 로그 저장. chunks를 OCI Object Storage(S3호환)에 저장 → Pod은 stateless
+#   - Grafana: 대시보드. Deployment + PVC (대시보드/데이터소스 영속화)
+#   - Promtail: DaemonSet (모든 노드에서 컨테이너 로그 수집)
+################################################################################
+
+global:
+  imagePullPolicy: IfNotPresent
+
+# Loki/Grafana는 ops 도구라 app-tier에 배치. Promtail은 DaemonSet이라 nodeSelector 없음
+nodeSelector:
+  role: app-tier
+
+# Secret 참조 (미리 생성 필요)
+# 추가 키:
+#   - LOKI_S3_ACCESS_KEY, LOKI_S3_SECRET_KEY, LOKI_S3_BUCKET, LOKI_S3_ENDPOINT, LOKI_S3_REGION
+#   - GRAFANA_ADMIN_PASSWORD
+secrets:
+  existingSecret: chaneling-secrets
+
+################################################################################
+# Loki (단일 binary 모드, OCI Object Storage 백엔드)
+################################################################################
+loki:
+  enabled: true
+  image:
+    repository: grafana/loki
+    tag: "3.2.0"
+  service:
+    port: 3100
+  resources:
+    requests: { cpu: "100m", memory: "256Mi" }
+    limits:   { cpu: "300m", memory: "512Mi" }
+  # 로그 보관 기간. retention = 168h (7일). values-prod.yaml에서 30일로 override
+  retentionPeriod: "168h"
+  # S3 호환 백엔드 (OCI Object Storage)
+  # 값들은 chaneling-secrets에서 env로 주입 후 -config.expand-env=true로 치환
+  s3:
+  # S3 URL 형식 2가지
+  # (1) Virtual Host style
+  # https://<bucket-name>.s3.<region>.amazonaws.com/<object-key> (버킷 이름이 hostname에 들어감)
+  # (2) Path style
+  # https://s3.<region>.amazonaws.com/<bucket-name>/<object-key> (버킷 이름이 path에 들어감)
+  # OCI는 Path 스타일만 지원함
+    forcePathStyle: true
+
+################################################################################
+# Grafana
+################################################################################
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: "11.2.0"
+  service:
+    port: 3000
+  resources:
+    requests: { cpu: "50m", memory: "128Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
+  persistence:
+    size: 1Gi
+  # Loki를 datasource로 자동 등록
+  defaultDatasource:
+    name: Loki
+    url: http://loki.monitoring.svc.cluster.local:3100
+  # 익명 접근 비활성. admin 계정만
+  allowSignUp: false
+
+################################################################################
+# Promtail (DaemonSet — 모든 노드에서 로그 수집)
+################################################################################
+promtail:
+  enabled: true
+  image:
+    repository: grafana/promtail
+    tag: "3.2.0"
+  resources:
+    requests: { cpu: "50m", memory: "64Mi" }
+    limits:   { cpu: "150m", memory: "128Mi" }
+  # Loki로 push할 주소
+  lokiUrl: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push

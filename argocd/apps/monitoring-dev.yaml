@@ -1,0 +1,41 @@
+################################################################################
+# monitoring · ArgoCD Application (dev)
+# loki + grafana + promtail을 'monitoring' namespace에 배포
+# data보다 약간 늦게 (wave 6) — 의존성 없지만 콘솔 가독성 위해
+################################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_USER/INFRA.git
+    targetRevision: dev
+    path: helm/monitoring
+    helm:
+      releaseName: monitoring
+      valueFiles:
+        - values.yaml
+        - values-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
