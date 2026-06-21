@@ -1,0 +1,41 @@
+################################################################################
+# data · ArgoCD Application (dev)
+# postgres + redis + kafka StatefulSet을 'data' namespace에 배포
+# chaneling-app보다 먼저 sync (sync-wave 5)
+################################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"   # app보다 먼저
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_USER/INFRA.git
+    targetRevision: dev
+    path: helm/data
+    helm:
+      releaseName: data
+      valueFiles:
+        - values.yaml
+        - values-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

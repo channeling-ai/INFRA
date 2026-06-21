@@ -1,0 +1,94 @@
+{{- if .Values.loki.enabled }}
+# Loki Deployment
+# - PVC 안 씀 (chunks가 S3에 있어서 stateless)
+# - 로컬 캐시는 emptyDir (Pod 재시작 시 사라져도 OK)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "monitoring.selectorLabels" (dict "Release" .Release "component" "loki") | nindent 6 }}
+  strategy:
+    type: Recreate    # 단일 replica + emptyDir이라 RollingUpdate 의미 없음
+  template:
+    metadata:
+      labels:
+        {{- include "monitoring.labels" . | nindent 8 }}
+        app.kubernetes.io/component: loki
+      annotations:
+        # ConfigMap 바뀌면 Pod 재시작 트리거
+        checksum/config: {{ include (print $.Template.BasePath "/loki-configmap.yaml") . | sha256sum }}
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      containers:
+        - name: loki
+          image: "{{ .Values.loki.image.repository }}:{{ .Values.loki.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - -config.file=/etc/loki/loki.yaml
+            - -config.expand-env=true       # ${...}를 환경 변수 값으로 치환하라는 명령
+          ports:
+            - name: http
+              containerPort: 3100
+            - name: grpc
+              containerPort: 9095
+          env:
+            - name: LOKI_S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: LOKI_S3_ENDPOINT
+            - name: LOKI_S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: LOKI_S3_BUCKET
+            - name: LOKI_S3_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: LOKI_S3_REGION
+            - name: LOKI_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: LOKI_S3_ACCESS_KEY
+            - name: LOKI_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: LOKI_S3_SECRET_KEY
+          resources:
+            {{- toYaml .Values.loki.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+            - name: storage
+              mountPath: /loki
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: loki-config
+        - name: storage
+          emptyDir:
+            sizeLimit: 1Gi
+{{- end }}

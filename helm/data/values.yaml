@@ -1,0 +1,88 @@
+################################################################################
+# data chart · base values
+# - postgres / redis / kafka 모두 StatefulSet + PVC
+# - nodeSelector role=data-tier (K3s server, node-1) 고정
+# - 단일 노드(노드 죽으면 데이터 액세스 불가) — dev 한정 트레이드오프
+################################################################################
+
+global:
+  imagePullPolicy: IfNotPresent
+  nodeSelector:
+    role: data-tier              # Node-1에 고정. PVC가 node-local이라 이동 불가
+  storageClassName: local-path   # K3s 기본 provisioner
+
+# 외부 차트(chaneling)가 참조하는 Secret. 미리 생성 필요
+# 포함 키: PG_PASSWORD, REDIS_PASSWORD (선택)
+secrets:
+  existingSecret: chaneling-secrets
+
+################################################################################
+# Postgres
+# - StatefulSet 1 replica + PVC
+# - postgres:17 
+# - 첫 부팅 시 POSTGRES_DB/USER/PASSWORD 환경변수로 DB + 사용자 자동 생성
+################################################################################
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "17.4"
+  service:
+    port: 5432
+  database: chaneling
+  # user 이름, 비밀번호 주면 postgres init할때 자동으로 이 credentials로 유저 하나 만들어줌
+  user: chaneling
+  resources:
+    requests: { cpu: "200m", memory: "512Mi" }
+    limits:   { cpu: "500m", memory: "1Gi" }
+  persistence:
+    size: 10Gi
+  config:
+    sharedBuffers: "256MB"
+    maxConnections: 100
+
+################################################################################
+# Redis
+# - StatefulSet 1 replica + PVC (세션/캐시 persistence)
+# - 비밀번호 옵셔널 (chaneling-secrets에 REDIS_PASSWORD 박혀있으면 활성화)
+################################################################################
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  service:
+    port: 6379
+  resources:
+    requests: { cpu: "50m", memory: "128Mi" }
+    limits:   { cpu: "150m", memory: "256Mi" }
+  persistence:
+    size: 1Gi
+  # 비번 사용 여부. true면 chaneling-secrets에서 REDIS_PASSWORD 끌어옴
+  passwordEnabled: false
+
+################################################################################
+# Kafka (KRaft single-node)
+# - StatefulSet 1 replica + PVC
+# - apache/kafka 공식 이미지 (multi-arch, ARM 지원)
+# - controller + broker 같은 노드 (KRaft combined mode)
+################################################################################
+kafka:
+  enabled: true
+  image:
+    repository: apache/kafka
+    tag: "3.8.0"
+  service:
+    port: 9092
+    controllerPort: 9093
+  resources:
+    requests: { cpu: "300m", memory: "768Mi" }
+    limits:   { cpu: "700m", memory: "1.5Gi" }
+  persistence:
+    size: 10Gi
+  # KRaft cluster ID (Base64 16바이트). 한 번 정하면 절대 변경 X
+  # 생성: kafka-storage random-uuid 또는 임의 UUID base64 인코딩
+  # 메타 데이터를 분산 저장하는데, 일관성 보장하려면 여러 노드들이 같은 클러스터에 있는지 확인할 수 있어야됨 -> 이걸로 증명
+  clusterId: "MkU3OEVBNTcwNTJENDM2Qg"
+  # JVM heap
+  heapOpts: "-Xms512m -Xmx512m"

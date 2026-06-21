@@ -1,0 +1,8 @@
+apiVersion: v2
+name: monitoring
+description: Chaneling 모니터링 스택 (loki + grafana + promtail)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: chaneling team

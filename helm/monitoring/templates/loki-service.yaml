@@ -1,0 +1,22 @@
+{{- if .Values.loki.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loki
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.loki.service.port }}
+      targetPort: http
+    # gRPC = Google Remote Procedure Call (고성능 서비스간 통신 프로토콜)
+    # 사용자 -> 백엔드 = REST, 백엔드 <-> 백엔드 = gRPC 속도 빠름
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+  selector:
+    {{- include "monitoring.selectorLabels" (dict "Release" .Release "component" "loki") | nindent 4 }}
+{{- end }}

@@ -1,0 +1,16 @@
+################################################################################
+# monitoring · prod overrides
+################################################################################
+
+loki:
+  retentionPeriod: "720h"   # 30일
+  resources:
+    requests: { cpu: "150m", memory: "384Mi" }
+    limits:   { cpu: "500m", memory: "768Mi" }
+
+grafana:
+  persistence:
+    size: 2Gi
+  resources:
+    requests: { cpu: "100m", memory: "192Mi" }
+    limits:   { cpu: "300m", memory: "384Mi" }

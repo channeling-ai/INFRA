@@ -1,0 +1,69 @@
+{{- if .Values.promtail.enabled }}
+# DaemonSet: 모든 노드에 1개씩 Pod 자동 배치
+# - 새 노드 추가되면 자동으로 거기에도 Promtail 시작
+# - 노드 삭제되면 같이 사라짐
+# - replicas 필드 없음 (노드 수 = replica 수)
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+spec:
+  selector:
+    matchLabels:
+      {{- include "monitoring.selectorLabels" (dict "Release" .Release "component" "promtail") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "monitoring.labels" . | nindent 8 }}
+        app.kubernetes.io/component: promtail
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/promtail-configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: promtail
+      # DaemonSet은 nodeSelector 없음 → 모든 노드에 배치
+      containers:
+        - name: promtail
+          image: "{{ .Values.promtail.image.repository }}:{{ .Values.promtail.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          args:
+            - -config.file=/etc/promtail/promtail.yaml
+          env:
+            # 자기 노드 hostname (relabel_configs에서 사용)
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            {{- toYaml .Values.promtail.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: positions
+              mountPath: /run/promtail
+            - name: pods-logs
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: containers-logs
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+          securityContext:
+            # 로그 파일 읽기 위해 root 필요 (hostPath 권한)
+            runAsUser: 0
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: positions
+          emptyDir: {}
+        # hostPath: 노드의 디렉토리를 Pod 안에 그대로 마운트
+        - name: pods-logs
+          hostPath:
+            path: /var/log/pods
+        - name: containers-logs
+          hostPath:
+            path: /var/lib/docker/containers
+{{- end }}

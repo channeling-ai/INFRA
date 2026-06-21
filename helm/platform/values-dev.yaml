@@ -1,0 +1,32 @@
+################################################################################
+# platform · dev overrides
+# dev 환경 hostname → 내부 Service 라우팅
+#
+# 외부 노출은 3가지만:
+#   - Spring (BE API). Vercel 호스팅 React 프론트가 호출
+#   - Grafana (모니터링)
+#   - ArgoCD (배포 UI)
+# fastapi/sse/redis/postgres/kafka는 클러스터 내부 통신만이라 외부 노출 X
+################################################################################
+
+cloudflared:
+  tunnelId: "REPLACE_WITH_DEV_TUNNEL_UUID"
+
+  # Cloudflare에서 들어오는 hostname을 K8s Service로 매핑
+  # 순서 중요: 위에서부터 매칭, 마지막 catch-all 필수
+  # hostname - service 맵핑(api-dev.chaneling.com으로 들어왔을 때 http://spring.app~으로 연결해줌
+  ingress:
+    # Spring BE (Vercel 프론트가 fetch 호출)
+    - hostname: api.dev.chaneling.com
+      service: http://spring.app.svc.cluster.local:8080
+
+    # Grafana
+    - hostname: grafana.dev.chaneling.com
+      service: http://grafana.monitoring.svc.cluster.local:3000
+
+    # ArgoCD UI (운영 도구라 별도 인증/IP 제한 권장)
+    - hostname: argocd.dev.chaneling.com
+      service: http://argocd-server.argocd.svc.cluster.local:80
+
+    # ★ catch-all (필수). 매칭 안 되는 hostname은 404
+    - service: http_status:404

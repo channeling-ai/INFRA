@@ -1,0 +1,41 @@
+{{- if .Values.promtail.enabled }}
+# Promtail이 K8s API에 접근해서 Pod 메타데이터(라벨, namespace, container 이름)를 가져옴
+# 에러 로그를 만들 때 어떤 네임스페이스의 어떤 앱의 어떤 파드에서 발생했는지까지 넣어서 로그 풍부하게 만들기 위해 필요
+# → ServiceAccount + ClusterRole + ClusterRoleBinding 필요
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+# promtail SA(service account)에 promtail cluster role(위에서 만든거) 권한을 연결함(바인딩)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    app.kubernetes.io/component: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,32 @@
+################################################################################
+# platform · prod overrides
+#
+# 외부 노출은 3가지만:
+#   - Spring (BE API)
+#   - Grafana
+#   - ArgoCD
+################################################################################
+
+cloudflared:
+  tunnelId: "REPLACE_WITH_PROD_TUNNEL_UUID"
+  # prod는 트래픽 더 받으니 약간 더 후하게
+  replicaCount: 2
+  resources:
+    requests: { cpu: "100m", memory: "192Mi" }
+    limits:   { cpu: "400m", memory: "384Mi" }
+
+  ingress:
+    # Spring BE (Vercel 프론트가 fetch 호출)
+    - hostname: api.chaneling.com
+      service: http://spring.app.svc.cluster.local:8080
+
+    # Grafana
+    - hostname: grafana.chaneling.com
+      service: http://grafana.monitoring.svc.cluster.local:3000
+
+    # ArgoCD UI (prod는 IP 화이트리스트 + SSO 권장)
+    - hostname: argocd.chaneling.com
+      service: http://argocd-server.argocd.svc.cluster.local:80
+
+    # ★ catch-all
+    - service: http_status:404

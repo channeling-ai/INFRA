@@ -1,0 +1,26 @@
+################################################################################
+# data · dev overrides
+# - 디스크 작게
+# - CPU request 줄임 (limit은 base 그대로 → burst 가능)
+# - nodeSelector는 base 그대로 (data-tier, Node-1 고정) — PVC가 local-path라 이동 불가
+################################################################################
+
+postgres:
+  persistence:
+    size: 5Gi
+  resources:
+    requests: { cpu: "100m", memory: "384Mi" }
+    limits:   { cpu: "500m", memory: "1Gi" }
+
+kafka:
+  persistence:
+    size: 5Gi
+  heapOpts: "-Xms384m -Xmx384m"
+  resources:
+    requests: { cpu: "150m", memory: "640Mi" }
+    limits:   { cpu: "700m", memory: "1.5Gi" }
+
+redis:
+  persistence:
+    size: 500Mi
+  # 그대로 (50m / 128Mi)

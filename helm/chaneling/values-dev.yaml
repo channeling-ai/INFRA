@@ -1,27 +1,45 @@
 ################################################################################
 # chaneling · dev overrides
-# `helm install --values values.yaml --values values-dev.yaml` 식으로 머지
+#
+# dev 노드는 1 OCPU × 2 (총 2 OCPU)뿐이라:
+#   1. CPU/메모리 request를 base보다 보수적으로 축소
+#   2. nodeSelector 해제 → 양 노드 다 사용 (Node-1의 여유 CPU 활용)
+#   limit은 base 그대로 → burst 가능
 ################################################################################
+
+# 양 노드 다 사용 가능 (dev only). prod에선 base values의 role=app-tier 유지
+global:
+  nodeSelector: {}
 
 config:
   springProfilesActive: "db,redis,kafka,dev"
   frontUrl: "https://dev.chaneling.io"
   env: "dev"
 
-# dev는 image tag를 dev branch의 commit SHA 기반으로
-# CI가 build 후 values-dev.yaml의 tag 자리만 sed로 교체 (Task #6)
 spring:
   image:
     tag: dev-latest
+  resources:
+    requests: { cpu: "100m", memory: "512Mi" }
+    limits:   { cpu: "500m", memory: "1Gi" }
 
 fastapi:
   image:
     tag: dev-latest
+  resources:
+    requests: { cpu: "100m", memory: "384Mi" }
+    limits:   { cpu: "400m", memory: "768Mi" }
 
 sse:
   image:
     tag: dev-latest
+  resources:
+    requests: { cpu: "50m", memory: "192Mi" }
+    limits:   { cpu: "200m", memory: "384Mi" }
 
 consumer:
   image:
     tag: dev-latest
+  resources:
+    requests: { cpu: "40m", memory: "192Mi" }
+    limits:   { cpu: "200m", memory: "384Mi" }

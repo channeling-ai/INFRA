@@ -1,0 +1,55 @@
+{{- if .Values.postgres.enabled }}
+---
+# 일반 Service: 외부에서 호출하는 진입점 (postgres.data.svc.cluster.local)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    {{- include "data.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.service.port }}
+      targetPort: postgres
+  selector:
+    {{- include "data.selectorLabels" (dict "Release" .Release "component" "postgres") | nindent 4 }}
+---
+# Headless Service: StatefulSet의 안정적 DNS (postgres-0.postgres-headless...)
+# Spring이 이걸 호출하지는 않음(내부용)
+# clusterIP: None → 가상 IP 없이 Pod IP 직접 응답
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  labels:
+    {{- include "data.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  # 일반 Service: 여기에 clusterIP 넣음
+  # DNS 조회: postgres.data.svc.cluster.local
+  # 응답: 10.43.5.10 (Service의 가상 IP 1개)
+  #    ↓
+  #    kube-proxy iptables → 뒤의 Pod 중 랜덤 1개로 라우팅
+  # 호출하는 쪽은 어느 pod가 올지 모름
+  # ============================
+  # Headless: 비워놓음
+  # DNS 조회: postgres-headless.data.svc.cluster.local
+  # 응답: 
+  #  - 10.42.1.20 (postgres-0의 Pod IP)
+  #  - 10.42.1.21 (postgres-1의 Pod IP)
+  #  - 10.42.1.22 (postgres-2의 Pod IP)
+  #    ↑
+  #    Pod IP들을 직접 다 반환 (A 레코드 여러 개)
+  # StatefulSet + Headless -> 이 IP들을 각 pod의 DNS에 맵핑 -> postgres-0 pod를 직접 호출 가능해짐
+  clusterIP: None
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.service.port }}
+      targetPort: postgres
+  selector:
+    {{- include "data.selectorLabels" (dict "Release" .Release "component" "postgres") | nindent 4 }}
+{{- end }}

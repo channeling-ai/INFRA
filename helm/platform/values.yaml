@@ -1,0 +1,45 @@
+################################################################################
+# platform chart · base values
+#
+# Cloudflare Tunnel (cloudflared) 만 운영
+# - 인스턴스 → Cloudflare 엣지로 outbound 터널 (인바운드 포트 안 엶)
+# - 사용자 트래픽: Cloudflare → tunnel → cloudflared Pod → K8s Service
+#
+# 셋업 절차:
+#   1. Cloudflare 대시보드에서 tunnel 생성 → tunnelId + credentials.json 발급
+#   2. credentials.json을 K8s Secret으로 생성:
+#        kubectl create secret generic cloudflared-credentials \
+#          -n platform --from-file=credentials.json=./credentials.json
+#   3. values-{env}.yaml에 tunnelId + ingress 규칙 작성
+#   4. Cloudflare DNS에 hostname → tunnel CNAME 등록 (대시보드 자동 처리)
+################################################################################
+
+global:
+  imagePullPolicy: IfNotPresent
+
+# app-tier에 배치 (외부 트래픽 받는 entry point니까)
+nodeSelector:
+  role: app-tier
+
+cloudflared:
+  enabled: true
+  # 2 replica + antiAffinity → HA. 한 Pod 죽어도 다른 게 트래픽 받음
+  replicaCount: 2
+  image:
+    repository: cloudflare/cloudflared
+    tag: "2024.10.0"
+  resources:
+    requests: { cpu: "50m", memory: "128Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
+
+  # Cloudflare 대시보드에서 tunnel 만들면 발급되는 UUID
+  # 환경별로 다른 tunnel 권장 (dev/prod 분리)
+  tunnelId: "REPLACE_WITH_TUNNEL_UUID"
+
+  # credentials.json 담은 K8s Secret 이름
+  # key는 "credentials.json"으로 고정
+  credentialsSecret: cloudflared-credentials
+
+  # ingress 라우팅은 환경별로 달라서 values-{env}.yaml에서 정의
+  # values.yaml에선 빈 배열 (실수로 base만 적용되어도 catch-all만 동작)
+  ingress: []
