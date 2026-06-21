@@ -375,6 +375,13 @@ resource "oci_core_instance" "k3s_server" {
     }))
   }
 
+  # Out of host capacity 대비. 이 시간 동안 자동 재시도
+  timeouts {
+    create = "1h"
+    update = "30m"
+    delete = "30m"
+  }
+
   freeform_tags = merge(local.common_tags, { Role = "k3s-server" })
 }
 
@@ -411,6 +418,13 @@ resource "oci_core_instance" "k3s_agent" {
 
   # agent는 server가 먼저 떠야 의미가 있음 (cloud-init이 server private IP 참조)
   depends_on = [oci_core_instance.k3s_server]
+
+  # Out of host capacity 대비
+  timeouts {
+    create = "1h"
+    update = "30m"
+    delete = "30m"
+  }
 
   freeform_tags = merge(local.common_tags, { Role = "k3s-agent" })
 }
