@@ -26,6 +26,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: data
+  # StatefulSet의 volumeClaimTemplates가 만든 PVC는 git에 없는 게 정상.
+  # K8s가 owner reference로 SS와 묶어서 관리하므로 ArgoCD는 무시해야 영구 OutOfSync 안 됨.
+  ignoreDifferences:
+    - group: ""
+      kind: PersistentVolumeClaim
+      jsonPointers:
+        - /spec
+        - /metadata
+        - /status
   syncPolicy:
     automated:
       prune: true
@@ -33,6 +42,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true   # ignoreDifferences를 sync 시에도 존중
     retry:
       limit: 5
       backoff:
