@@ -72,11 +72,11 @@ spec:
               mountPath: /etc/loki
             - name: storage
               mountPath: /loki
-          # liveness는 /healthy (단순히 프로세스 살아있는지) — /ready는 S3 연결까지 검사라 너무 엄격
-          # readiness만 /ready로 두면 트래픽 라우팅은 적절히 지연 + 프로세스는 안 죽음
+          # Loki는 /healthy 엔드포인트가 없음 (404). TCP 프로브로 "프로세스가 포트 듣고 있나"만 확인.
+          # → S3 warm-up 중에도 안 죽음
+          # readiness만 /ready (S3 연결까지 검사) → 트래픽 라우팅에서 적절히 제외, but pod는 안 죽음
           livenessProbe:
-            httpGet:
-              path: /healthy
+            tcpSocket:
               port: http
             initialDelaySeconds: 60
             periodSeconds: 30
@@ -85,9 +85,9 @@ spec:
             httpGet:
               path: /ready
               port: http
-            initialDelaySeconds: 60      # 30 → 60: S3 warm-up 시간 확보
+            initialDelaySeconds: 60      # S3 warm-up 시간 확보
             periodSeconds: 10
-            failureThreshold: 12         # 기본 3 → 12 (2분 동안 실패 허용)
+            failureThreshold: 12         # 2분 동안 not ready 허용
       volumes:
         - name: config
           configMap:
