@@ -15,7 +15,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/REPLACE_USER/INFRA.git
+    repoURL: https://github.com/channeling-ai/INFRA.git
     targetRevision: dev
     path: helm/platform
     helm:
