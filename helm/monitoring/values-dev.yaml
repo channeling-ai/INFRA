@@ -1,10 +1,21 @@
 ################################################################################
 # monitoring · dev overrides
+# dev는 2 OCPU만 있어 app-tier(node-2) 빡빡 → monitoring을 data-tier로
+# Loki는 S3 stateless라 어느 노드든 OK
 ################################################################################
+
+nodeSelector:
+  role: data-tier
 
 loki:
   retentionPeriod: "168h"   # 7일
+  resources:
+    requests: { cpu: "50m", memory: "256Mi" }
+    limits:   { cpu: "300m", memory: "512Mi" }
 
 grafana:
   persistence:
     size: 500Mi
+  resources:
+    requests: { cpu: "30m", memory: "128Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
