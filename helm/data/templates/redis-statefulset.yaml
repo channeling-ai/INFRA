@@ -61,7 +61,10 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
   volumeClaimTemplates:
-    - metadata:
+    # apiVersion/kind는 K8s ServerSideApply가 default로 채움 → 미리 박아야 ArgoCD diff 안 남
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
