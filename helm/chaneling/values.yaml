@@ -57,7 +57,7 @@ spring:
   enabled: true
   replicaCount: 2
   image:
-    repository: hadoroke/channeling-be   # TODO: 이미지 리네임 후 chaneling-be로 변경
+    repository: hadoroke/chaneling-be   
     tag: latest
   service:
     # 파드는 죽으면 IP 바뀜, replica가 여러개면 IP도 여러개 / 스케줄러가 어느 노드에 떨굴지 결정하려는데 어떤 파드가 어디에 있는지 모름
@@ -93,7 +93,7 @@ fastapi:
   enabled: true
   replicaCount: 2
   image:
-    repository: hadoroke/channeling-llm   # TODO: chaneling-llm
+    repository: hadoroke/chaneling-llm   
     tag: latest
   service:
     type: ClusterIP
@@ -120,7 +120,7 @@ sse:
   enabled: true
   replicaCount: 1
   image:
-    repository: hadoroke/channeling-sse   # TODO: chaneling-sse
+    repository: hadoroke/chaneling-sse   
     tag: latest
   service:
     type: ClusterIP
@@ -146,7 +146,7 @@ sse:
 ################################################################################
 consumer:
   image:
-    repository: hadoroke/channeling-llm   # TODO: chaneling-llm
+    repository: hadoroke/chaneling-llm   
     tag: latest
   resources:
     requests: { cpu: "100m", memory: "256Mi" }

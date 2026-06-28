@@ -15,6 +15,9 @@ config:
   springProfilesActive: "db,redis,kafka,dev"
   frontUrl: "https://dev.chaneling.io"
   env: "dev"
+  # dev는 OCI Object Storage를 S3 호환 API로 사용. region은 OCI 춘천.
+  # endpoint override는 시크릿 AWS_ENDPOINT_URL_S3로 주입됨.
+  awsRegion: "ap-chuncheon-1"
 
 spring:
   image:

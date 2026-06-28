@@ -99,6 +99,18 @@ Spring용 추가 env (S3, Google OAuth)
   value: {{ .Values.config.frontUrl | quote }}
 - name: AWS_REGION
   value: {{ .Values.config.awsRegion | quote }}
+# S3 endpoint override (OCI, 빈 문자열이면 AWS SDK default로 fallback)
+- name: AWS_ENDPOINT_URL_S3
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.secrets.existingSecret }}
+      key: AWS_ENDPOINT_URL_S3
+# public 버킷 접근용 베이스 URL (AWS/OCI 공통 추상화)
+- name: S3_PUBLIC_URL_BASE
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.secrets.existingSecret }}
+      key: S3_PUBLIC_URL_BASE
 - name: AWS_S3_PRIVATE_BUCKET
   valueFrom:
     secretKeyRef:
