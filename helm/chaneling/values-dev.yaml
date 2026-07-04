@@ -10,6 +10,8 @@
 # 양 노드 다 사용 가능 (dev only). prod에선 base values의 role=app-tier 유지
 global:
   nodeSelector: {}
+  # dev-latest mutable 태그라 캐시 무시하고 매번 pull. prod에선 IfNotPresent 유지 (base).
+  imagePullPolicy: Always
 
 config:
   springProfilesActive: "db,redis,kafka,dev"
