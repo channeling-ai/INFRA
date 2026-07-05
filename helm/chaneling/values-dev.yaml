@@ -35,7 +35,7 @@ fastapi:
     limits: {cpu: "400m", memory: "768Mi"}
 sse:
   image:
-    tag: dev-ff3f5c9
+    tag: dev-1332c94
   resources:
     requests: {cpu: "50m", memory: "192Mi"}
     limits: {cpu: "200m", memory: "384Mi"}
