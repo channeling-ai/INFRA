@@ -25,8 +25,10 @@ secrets:
 postgres:
   enabled: true
   image:
-    repository: postgres
-    tag: "17.4"
+    # pgvector 프리인스톨 이미지 (공식 postgres:17 기반, 드롭인 호환).
+    # Flyway 마이그레이션의 CREATE EXTENSION vector 를 위해 필요.
+    repository: pgvector/pgvector
+    tag: pg17
   service:
     port: 5432
   database: chaneling
