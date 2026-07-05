@@ -10,22 +10,24 @@
 ################################################################################
 
 cloudflared:
-  tunnelId: "REPLACE_WITH_DEV_TUNNEL_UUID"
+  tunnelId: "46aaf913-54bd-4bef-995a-c25d9ca7bc12"
 
   # Cloudflare에서 들어오는 hostname을 K8s Service로 매핑
   # 순서 중요: 위에서부터 매칭, 마지막 catch-all 필수
   # hostname - service 맵핑(api-dev.chaneling.com으로 들어왔을 때 http://spring.app~으로 연결해줌
   ingress:
+    # 단일 단계 서브도메인(하이픈) — Cloudflare 무료 Universal SSL(*.chaneling.com)이
+    # 커버하는 건 한 단계뿐. api.dev.chaneling.com(2단계)은 TLS 미커버 → api-dev로.
     # Spring BE (Vercel 프론트가 fetch 호출)
-    - hostname: api.dev.chaneling.com
+    - hostname: api-dev.chaneling.com
       service: http://spring.app.svc.cluster.local:8080
 
     # Grafana
-    - hostname: grafana.dev.chaneling.com
+    - hostname: grafana-dev.chaneling.com
       service: http://grafana.monitoring.svc.cluster.local:3000
 
     # ArgoCD UI (운영 도구라 별도 인증/IP 제한 권장)
-    - hostname: argocd.dev.chaneling.com
+    - hostname: argocd-dev.chaneling.com
       service: http://argocd-server.argocd.svc.cluster.local:80
 
     # ★ catch-all (필수). 매칭 안 되는 hostname은 404
