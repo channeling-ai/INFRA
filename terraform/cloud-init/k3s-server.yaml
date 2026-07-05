@@ -76,6 +76,19 @@ runcmd:
   # 0. sysctl 적용 - 위에서 작성한 99-k3.conf를 커널에 반영
   - sysctl --system
 
+  # 0.5. flannel VXLAN 크로스노드 통신 허용 (호스트 iptables)
+  #   OCI Ubuntu 이미지는 기본 iptables에 catch-all REJECT
+  #   (-A INPUT -j REJECT --reject-with icmp-host-prohibited)가 깔려 있음.
+  #   이 때문에 flannel VXLAN(UDP 8472) 캡슐 패킷이 노드 간에 막혀서,
+  #   다른 노드에 있는 파드끼리 통신 불가 → CoreDNS/Service 조회 실패.
+  #   또한 agent가 6443/etcd 등으로 join하려면 호스트에서 intra-VCN 인바운드 허용 필요.
+  #   REJECT보다 앞(-I: 최상단 삽입)에 intra-VCN 허용 + VXLAN 허용을 넣고 영구화한다.
+  #   (OCI Security List에서 이미 열려 있어도 호스트 iptables는 별도로 뚫어야 함)
+  #   10.0.0.0/16 은 main.tf 의 vcn_cidr 와 일치해야 함.
+  - iptables -I INPUT -s 10.0.0.0/16 -j ACCEPT
+  - iptables -I INPUT -p udp --dport 8472 -j ACCEPT
+  - netfilter-persistent save
+
   # 1. 자기 자신 public IP를 OCI IMDS에서 조회 (kubectl 원격 접속용 TLS SAN에 사용)
   # OCI의 메타데이터 서비스에 API 요청해서 물어보고 환경변수로 저장
   - |
