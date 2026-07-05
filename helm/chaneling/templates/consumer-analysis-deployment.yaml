@@ -17,8 +17,10 @@ spec:
         {{- include "chaneling.labels" . | nindent 8 }}
         app.kubernetes.io/component: consumer-analysis
     spec:
+      {{- with .Values.global.nodeSelector }}
       nodeSelector:
-        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       affinity:
         {{- include "chaneling.antiAffinity" (dict "component" "consumer-analysis") | nindent 8 }}
       containers:

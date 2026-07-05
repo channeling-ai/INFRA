@@ -5,7 +5,7 @@
 
 config:
   springProfilesActive: "db,redis,kafka,prod"
-  frontUrl: "https://chaneling.io"
+  frontUrl: "https://app.chaneling.com"
   env: "prod"
 
 spring:

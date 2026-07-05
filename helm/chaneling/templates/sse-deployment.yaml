@@ -17,8 +17,10 @@ spec:
         {{- include "chaneling.labels" . | nindent 8 }}
         app.kubernetes.io/component: sse
     spec:
+      {{- with .Values.global.nodeSelector }}
       nodeSelector:
-        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: sse
           image: "{{ .Values.sse.image.repository }}:{{ .Values.sse.image.tag }}"

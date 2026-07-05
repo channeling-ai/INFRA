@@ -21,8 +21,10 @@ spec:
         app.kubernetes.io/component: spring
     spec:
       # 어느 노드에 떨굴지 결정 (노드에 붙은 라벨 보고)
+      {{- with .Values.global.nodeSelector }}
       nodeSelector:
-        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       affinity:
         {{- include "chaneling.antiAffinity" (dict "component" "spring") | nindent 8 }}
       containers:
