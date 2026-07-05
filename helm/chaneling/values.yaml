@@ -32,7 +32,8 @@ config:
   redisHost: redis.data.svc.cluster.local
   redisPort: "6379"
   kafkaBootstrap: kafka.data.svc.cluster.local:9092
-  springProfilesActive: "db,redis,kafka,prod"
+  # 프로파일별 config 파일(application-{db,s3,oauth,jwt}.yml) 로드용. dev/prod 공통.
+  springProfilesActive: "db,s3,oauth,jwt"
   frontUrl: "https://chaneling.com"
   fastapiUrl: "http://fastapi.app.svc.cluster.local:8000"
   awsRegion: "ap-northeast-2"
