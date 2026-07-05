@@ -35,16 +35,26 @@ spec:
               value: {{ .Values.config.springProfilesActive | quote }}
           resources:
             {{- toYaml .Values.sse.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.sse.probes.startup.path }}
+              port: {{ .Values.sse.probes.startup.port }}
+            periodSeconds: {{ .Values.sse.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.sse.probes.startup.failureThreshold }}
           livenessProbe:
             httpGet:
               path: {{ .Values.sse.probes.liveness.path }}
               port: {{ .Values.sse.probes.liveness.port }}
             initialDelaySeconds: {{ .Values.sse.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.sse.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.sse.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.sse.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
               path: {{ .Values.sse.probes.readiness.path }}
               port: {{ .Values.sse.probes.readiness.port }}
             initialDelaySeconds: {{ .Values.sse.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.sse.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.sse.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.sse.probes.readiness.failureThreshold }}
 {{- end }}

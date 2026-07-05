@@ -40,16 +40,26 @@ spec:
             {{- include "chaneling.springExtraEnv" . | nindent 12 }}
           resources:
             {{- toYaml .Values.spring.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.spring.probes.startup.path }}
+              port: {{ .Values.spring.probes.startup.port }}
+            periodSeconds: {{ .Values.spring.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.spring.probes.startup.failureThreshold }}
           livenessProbe:
             httpGet:
               path: {{ .Values.spring.probes.liveness.path }}
               port: {{ .Values.spring.probes.liveness.port }}
             initialDelaySeconds: {{ .Values.spring.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.spring.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.spring.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.spring.probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
               path: {{ .Values.spring.probes.readiness.path }}
               port: {{ .Values.spring.probes.readiness.port }}
             initialDelaySeconds: {{ .Values.spring.probes.readiness.initialDelaySeconds }}
             periodSeconds: {{ .Values.spring.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.spring.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.spring.probes.readiness.failureThreshold }}
 {{- end }}

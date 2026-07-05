@@ -74,18 +74,28 @@ spring:
     requests: { cpu: "250m", memory: "768Mi" }
     limits:   { cpu: "500m", memory: "1Gi" }
   probes:
+    # JVM 기동이 느림(CPU 굶주린 노드). startupProbe로 기동 대기를 분리 → 기동 중 kill 방지.
+    startup:
+      path: /actuator/health/liveness
+      port: 8080
+      periodSeconds: 10
+      failureThreshold: 30        # 최대 300s 기동 허용
     # 실패 -> K8s가 컨테이너 강제 재시작
     liveness:
       path: /actuator/health/liveness
       port: 8080
-      initialDelaySeconds: 60
+      initialDelaySeconds: 0      # startupProbe가 기동 대기 담당
       periodSeconds: 30
-    # 실패 -> Service에서 이 파드 제외(트래픽 안 보냄) 
+      timeoutSeconds: 5           # CPU 경합 시 응답 지연 대비
+      failureThreshold: 3
+    # 실패 -> Service에서 이 파드 제외(트래픽 안 보냄)
     readiness:
       path: /actuator/health/readiness
       port: 8080
-      initialDelaySeconds: 30
+      initialDelaySeconds: 0
       periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
 
 ################################################################################
 # FastAPI (LLM)
@@ -103,16 +113,26 @@ fastapi:
     requests: { cpu: "200m", memory: "512Mi" }
     limits:   { cpu: "400m", memory: "768Mi" }
   probes:
+    # Python은 기동이 빠르지만 통일성/부하 대비 startupProbe 적용.
+    startup:
+      path: /health
+      port: 8000
+      periodSeconds: 10
+      failureThreshold: 30
     liveness:
       path: /health
       port: 8000
-      initialDelaySeconds: 60
+      initialDelaySeconds: 0
       periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
     readiness:
       path: /health
       port: 8000
-      initialDelaySeconds: 20
+      initialDelaySeconds: 0
       periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
 
 ################################################################################
 # SSE (Server-Sent Events)
@@ -130,16 +150,27 @@ sse:
     requests: { cpu: "100m", memory: "256Mi" }
     limits:   { cpu: "200m", memory: "384Mi" }
   probes:
+    # JVM 기동이 느림(CPU 굶주린 노드에서 90s+). startupProbe로 기동 대기를 분리:
+    # startup 성공 전까지 liveness/readiness는 동작 안 함 → 기동 중 kill 방지.
+    startup:
+      path: /actuator/health/liveness
+      port: 8081
+      periodSeconds: 10
+      failureThreshold: 30        # 최대 300s 기동 허용
     liveness:
       path: /actuator/health/liveness
       port: 8081
-      initialDelaySeconds: 60
+      initialDelaySeconds: 0      # startupProbe가 기동 대기를 담당하므로 0
       periodSeconds: 30
+      timeoutSeconds: 5           # CPU 경합 시 응답 지연 대비(기본 1s는 너무 빡빡)
+      failureThreshold: 3
     readiness:
       path: /actuator/health/readiness
       port: 8081
-      initialDelaySeconds: 30
+      initialDelaySeconds: 0
       periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
 
 ################################################################################
 # Kafka Consumers (overview, analysis, idea)
