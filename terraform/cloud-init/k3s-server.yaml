@@ -150,6 +150,13 @@ runcmd:
   - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl create namespace argocd
   - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.12.4/manifests/install.yaml
 
+  # 5.5. argocd-server를 insecure 모드로 설정
+  #   cloudflared가 엣지에서 TLS를 종료하고 argocd-server:80(HTTP)로 평문 전달함.
+  #   서버 기본값은 HTTP→HTTPS 리다이렉트라, 터널 뒤에선 무한 리다이렉트 루프가 생김.
+  #   server.insecure=true로 서버가 평문 요청을 그대로 받게 함.
+  - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge -p '{"data":{"server.insecure":"true"}}'
+  - KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n argocd rollout restart deployment argocd-server
+
   # 6. ArgoCD 서버 준비 대기
   - until KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl wait --for=condition=available --timeout=600s deployment/argocd-server -n argocd; do sleep 10; done
 
