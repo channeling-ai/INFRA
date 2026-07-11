@@ -198,3 +198,14 @@ consumer:
     enabled: true
     replicaCount: 2
     command: ["python", "kafka_idea_consumer.py"]
+
+  # dev는 CPU 여유가 적어 신규 컨슈머는 replica 1로 시작
+  dashboard:
+    enabled: true
+    replicaCount: 1
+    command: ["python", "kafka_dashboard_consumer.py"]
+
+  recommend:
+    enabled: true
+    replicaCount: 1
+    command: ["python", "kafka_recommend_consumer.py"]
