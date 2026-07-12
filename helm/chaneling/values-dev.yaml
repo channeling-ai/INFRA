@@ -23,7 +23,7 @@ config:
   awsRegion: "ap-chuncheon-1"
 spring:
   image:
-    tag: dev-7bcc409
+    tag: dev-88747ca
   resources:
     requests: {cpu: "100m", memory: "512Mi"}
     limits: {cpu: "500m", memory: "1Gi"}
