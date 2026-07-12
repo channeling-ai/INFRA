@@ -97,6 +97,12 @@ Spring용 추가 env (S3, Google OAuth)
   value: {{ .Values.config.fastapiUrl | quote }}
 - name: FRONT_URL
   value: {{ .Values.config.frontUrl | quote }}
+# spring도 YouTube API 사용 (시크릿엔 이미 YOUTUBE_API_KEY 존재)
+- name: YOUTUBE_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.secrets.existingSecret }}
+      key: YOUTUBE_API_KEY
 - name: AWS_REGION
   value: {{ .Values.config.awsRegion | quote }}
 # S3 endpoint override (OCI, 빈 문자열이면 AWS SDK default로 fallback)
