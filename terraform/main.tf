@@ -95,7 +95,9 @@ variable "github_infra_repo" {
 }
 
 variable "github_infra_path" {
-  description = "ArgoCD app-of-apps 매니페스트 경로"
+  # app-of-apps 매니페스트의 "베이스" 경로. 실제 경로는 여기에 env를 붙임: <base>/<env_name>
+  # (argocd/apps/dev, argocd/apps/prod). 클러스터가 자기 환경 앱만 등록하도록 분리.
+  description = "ArgoCD app-of-apps 매니페스트 베이스 경로 (env 서브폴더 자동 부착)"
   type        = string
   default     = "argocd/apps"
 }
@@ -370,7 +372,8 @@ resource "oci_core_instance" "k3s_server" {
       oci_s3_secret_key    = var.oci_s3_secret_key
       oci_region           = var.region
       github_infra_repo    = var.github_infra_repo
-      github_infra_path    = var.github_infra_path
+      # env별 서브폴더로 분리 → dev 클러스터는 argocd/apps/dev 만, prod는 argocd/apps/prod 만 등록
+      github_infra_path    = "${var.github_infra_path}/${var.env_name}"
       github_infra_branch  = var.github_infra_branch
     }))
   }

@@ -23,6 +23,7 @@ oci_s3_secret_key = "REPLACE"
 
 # GitOps 소스 — ArgoCD가 sync할 INFRA 레포
 github_infra_repo = "https://github.com/<user>/INFRA.git"
+# 베이스 경로. 실제 등록 경로는 env가 붙어 argocd/apps/<env_name> (예: argocd/apps/dev)
 github_infra_path = "argocd/apps"
 github_infra_branch = "dev"
 
