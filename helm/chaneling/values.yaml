@@ -46,6 +46,7 @@ config:
 #         AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
 #         AWS_S3_PRIVATE_BUCKET, AWS_S3_PUBLIC_BUCKET,
 #         PROXY_USERNAME, PROXY_PASSWORD,
+#         NICEPAY_CLIENT_KEY, NICEPAY_SECRET_KEY,
 #         DISCORD_WEBHOOK_URL, REDIS_PASSWORD (선택)
 secrets:
   # 시크릿값 관리 패턴: 차트가 직접 시크릿 안 말들고 외부에서 만든 시크릿 참조만 하겠다는 뜻

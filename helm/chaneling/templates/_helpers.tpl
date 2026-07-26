@@ -152,6 +152,17 @@ Spring용 추가 env (S3, Google OAuth)
     secretKeyRef:
       name: {{ .Values.secrets.existingSecret }}
       key: GOOGLE_REDIRECT_URI
+# NICEPAY 결제 키 (spring 전용)
+- name: NICEPAY_CLIENT_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.secrets.existingSecret }}
+      key: NICEPAY_CLIENT_KEY
+- name: NICEPAY_SECRET_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.secrets.existingSecret }}
+      key: NICEPAY_SECRET_KEY
 {{- end }}
 
 {{/*
