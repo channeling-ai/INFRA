@@ -18,6 +18,8 @@ global:
 config:
   frontUrl: "https://chaneling.com"
   env: "dev"
+  # dev는 NICEPAY sandbox
+  nicepayBaseUrl: "https://sandbox-api.nicepay.co.kr/"
   # dev는 OCI Object Storage를 S3 호환 API로 사용. region은 OCI 춘천.
   # endpoint override는 시크릿 AWS_ENDPOINT_URL_S3로 주입됨.
   awsRegion: "ap-chuncheon-1"
