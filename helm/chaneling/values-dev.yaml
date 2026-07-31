@@ -31,7 +31,7 @@ spring:
     limits: {cpu: "500m", memory: "1Gi"}
 fastapi:
   image:
-    tag: dev-c905b3f
+    tag: dev-40caa8e
   resources:
     requests: {cpu: "100m", memory: "384Mi"}
     limits: {cpu: "400m", memory: "768Mi"}
@@ -43,7 +43,7 @@ sse:
     limits: {cpu: "200m", memory: "384Mi"}
 consumer:
   image:
-    tag: dev-c905b3f
+    tag: dev-40caa8e
   resources:
     requests: {cpu: "40m", memory: "192Mi"}
     limits: {cpu: "200m", memory: "384Mi"}
