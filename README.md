@@ -8,35 +8,8 @@ Chaneling(v2) 서비스의 쿠버네티스 기반 인프라 레포. **Terraform*
 
 ## 아키텍처
 
-```
-                 사용자 / Vercel 프론트
-                        │ HTTPS
-                        ▼
-                 Cloudflare 엣지  ── TLS 종료
-                        │ (아웃바운드 터널, 인바운드 포트 안 엶)
-                        ▼
-        ┌──────────────────  OCI VCN (10.0.0.0/16) ──────────────────┐
-        │  node-1 (server, data-tier)        node-2 (agent, app-tier)  │
-        │  ┌───────────────────────────┐   ┌───────────────────────┐  │
-        │  │ k3s control-plane + etcd  │   │ cloudflared (터널)     │  │
-        │  │ ArgoCD                    │   │  (app-tier 고정)       │  │
-        │  │ postgres/kafka/redis(data)│   └───────────────────────┘  │
-        │  │ loki · grafana (monitoring)│                              │
-        │  └───────────────────────────┘  ← node-1 고정(PVC/etcd)     │
-        │                                                             │
-        │  ┌── app 워크로드 : dev는 nodeSelector 해제 → 양 노드 분산 ──┐ │
-        │  │  spring · fastapi · sse · consumers ×5                   │ │
-        │  │        (app ns) — 스케줄러가 node-1·node-2 둘 다 사용     │ │
-        │  └──────────────────────────────────────────────────────────┘ │
-        │  promtail = DaemonSet(모든 노드)                              │
-        │        ◀──── flannel VXLAN (UDP 8472) 크로스노드 파드망 ────▶  │
-        └─────────────────────────────────────────────────────────────┘
-            OCI A1.Flex ARM64 · 1 OCPU/6GB × 2 · Ubuntu 22.04 · K3s v1.30.5
+<img width="2760" height="1660" alt="Chaneling v2 — System Architecture" src="https://github.com/user-attachments/assets/478d8f62-be87-477e-9f18-86c4e82fdb98" />
 
-  * data(postgres/kafka/redis)·etcd·ArgoCD·loki·grafana = node-1 고정.
-    app 파드는 dev에서 양 노드에 흩어짐(prod는 role=app-tier로 node-2 고정).
-    cloudflared는 platform 차트라 dev에서도 app-tier(node-2) 유지.
-```
 
 자세한 내용은 [docs/architecture.md](docs/architecture.md).
 
